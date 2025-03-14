@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified To-Do List</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="loginContainer" class="container">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <input type="checkbox" id="showPassword"> Show Password
+        <button onclick="login()">Login</button>
+        <p>Don't have an account? <button onclick="register()">Register</button></p>
+    </div>
+
+    <div id="appContainer" class="container hidden">
+        <h1>Gamified To-Do List</h1>
+        <p>Welcome, <span id="displayUser"></span></p>
+        <p>Points: <span id="points">0</span></p>
+
+        <input type="text" id="taskInput" placeholder="Enter a task">
+        <button onclick="addTask()">Add Task</button>
+
+        <ul id="taskList"></ul>
+
+        <div id="premiumFeature" class="hidden">
+            <h2>Premium Feature Unlocked!</h2>
+            <p>Set a reminder for tasks.</p>
+            <input type="time" id="taskTime">
+        </div>
+
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
