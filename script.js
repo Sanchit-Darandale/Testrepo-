@@ -51,7 +51,6 @@ function register() {
 
     localStorage.setItem(username, JSON.stringify({
         password: password,
-        points: 0,
         completedTasks: 0,
         premiumUnlocked: false,
         tasks: []
@@ -96,13 +95,12 @@ function addTask() {
         return;
     }
 
-    // Restrict non-premium users from adding time
-    if (!userData.premiumUnlocked && timeValue) {
-        alert("You need to complete 10 tasks to unlock the time feature!");
-        return;
-    }
+    // Allow setting time only if the user has unlocked premium
+    let newTask = {
+        text: taskText,
+        time: userData.premiumUnlocked ? timeValue : ""
+    };
 
-    let newTask = { text: taskText, time: userData.premiumUnlocked ? timeValue : "" };
     userData.tasks.push(newTask);
     localStorage.setItem(username, JSON.stringify(userData));
 
@@ -123,15 +121,14 @@ function displayTasks() {
     userData.tasks.forEach((task, index) => {
         let li = document.createElement("li");
 
-        // Show time only if premium is unlocked
         let taskDetails = userData.premiumUnlocked ? `${task.text} (${task.time})` : task.text;
 
         li.innerHTML = `${taskDetails} <button onclick="completeTask(${index})">Complete</button>`;
         taskList.appendChild(li);
 
-        // Schedule notifications if premium is unlocked
+        // Schedule task start notification if premium is unlocked
         if (userData.premiumUnlocked && task.time) {
-            scheduleNotification(task.text, task.time);
+            scheduleTaskStartNotification(task.text, task.time);
         }
     });
 }
@@ -141,19 +138,14 @@ function completeTask(index) {
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
-    // Remove completed task
     userData.tasks.splice(index, 1);
 
-    // Increase points
-    userData.points += 2;
-
-    // Track number of completed tasks
     if (!userData.completedTasks) {
         userData.completedTasks = 0;
     }
     userData.completedTasks += 1;
 
-    // Unlock premium feature if user completes 10 tasks
+    // Unlock premium feature after completing 10 tasks
     if (userData.completedTasks >= 10) {
         userData.premiumUnlocked = true;
     }
@@ -165,7 +157,6 @@ function completeTask(index) {
 // Load User Data
 function loadUserData(username) {
     let userData = JSON.parse(localStorage.getItem(username));
-    document.getElementById("points").innerText = userData.points;
 
     if (userData.premiumUnlocked) {
         document.getElementById("premiumFeature").classList.remove("hidden");
@@ -176,8 +167,8 @@ function loadUserData(username) {
     displayTasks();
 }
 
-// Schedule Notifications for Task Start & 5 Minutes Before
-function scheduleNotification(taskName, taskTime) {
+// Schedule Notification for Task Start Time
+function scheduleTaskStartNotification(taskName, taskTime) {
     if (Notification.permission !== "granted") {
         console.log("Notifications are blocked by the user.");
         return;
@@ -191,24 +182,15 @@ function scheduleNotification(taskName, taskTime) {
     taskStartTime.setMinutes(minutes);
     taskStartTime.setSeconds(0);
 
-    let taskReminderTime = new Date(taskStartTime);
-    taskReminderTime.setMinutes(taskReminderTime.getMinutes() - 5); // Notify 5 minutes before
-
-    let timeDiffReminder = taskReminderTime - now;
     let timeDiffStart = taskStartTime - now;
-
-    if (timeDiffReminder > 0) {
-        console.log(`Reminder set for task: ${taskName}`);
-        setTimeout(() => {
-            notifyUser(`Reminder: Your task "${taskName}" starts in 5 minutes!`);
-        }, timeDiffReminder);
-    }
 
     if (timeDiffStart > 0) {
         console.log(`Task start notification set for: ${taskName}`);
         setTimeout(() => {
             notifyUser(`Your task "${taskName}" is starting now!`);
         }, timeDiffStart);
+    } else {
+        console.log(`Task "${taskName}" time has already passed.`);
     }
 }
 
