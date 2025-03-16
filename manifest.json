@@ -1,0 +1,20 @@
+{
+    "name": "Gamified To-Do List",
+    "short_name": "To-Do App",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#28a745",
+    "icons": [
+        {
+            "src": "https://ibb.co/fYpTXkSz",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://ibb.co/fYpTXkSz",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
