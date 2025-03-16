@@ -152,3 +152,45 @@ function notifyUser(message) {
         });
     }
 }
+
+// Request notification permission on page load
+document.addEventListener("DOMContentLoaded", function () {
+    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            console.log("Notification Permission:", permission);
+        });
+    }
+});
+
+// Function to schedule notifications 5 minutes before task time
+function scheduleNotification(taskName, taskTime) {
+    if (Notification.permission !== "granted") {
+        console.log("Notifications are blocked by the user.");
+        return;
+    }
+
+    let now = new Date();
+    let [hours, minutes] = taskTime.split(":").map(Number);
+
+    let taskDate = new Date();
+    taskDate.setHours(hours);
+    taskDate.setMinutes(minutes - 5); // Notify 5 minutes before
+    taskDate.setSeconds(0);
+
+    let timeDiff = taskDate - now;
+    console.log(`Current Time: ${now}`);
+    console.log(`Task Time: ${taskDate}`);
+    console.log(`Time Difference: ${timeDiff} ms`);
+
+    if (timeDiff > 0) {
+        console.log("Notification scheduled.");
+        setTimeout(() => {
+            new Notification(`Reminder: Your task "${taskName}" starts in 5 minutes!`);
+        }, timeDiff);
+    } else {
+        console.log("Task time has already passed or is invalid.");
+    }
+}
+
+// Example usage (Test in Console)
+scheduleNotification("Write Assignment", "18:00");
