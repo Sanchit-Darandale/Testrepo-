@@ -12,7 +12,7 @@ window.onload = function () {
     }
 };
 
-// Show/hide password
+// Show/hide password toggle
 document.getElementById("showPassword").addEventListener("change", function () {
     let passwordField = document.getElementById("password");
     passwordField.type = this.checked ? "text" : "password";
@@ -20,8 +20,8 @@ document.getElementById("showPassword").addEventListener("change", function () {
 
 // Login function
 function login() {
-    let username = document.getElementById("username").value;
-    let password = document.getElementById("password").value;
+    let username = document.getElementById("username").value.trim();
+    let password = document.getElementById("password").value.trim();
 
     let storedUser = localStorage.getItem(username);
 
@@ -35,8 +35,13 @@ function login() {
 
 // Register function
 function register() {
-    let username = document.getElementById("username").value;
-    let password = document.getElementById("password").value;
+    let username = document.getElementById("username").value.trim();
+    let password = document.getElementById("password").value.trim();
+
+    if (!username || !password) {
+        alert("Username and password cannot be empty!");
+        return;
+    }
 
     if (localStorage.getItem(username)) {
         alert("Username already exists!");
@@ -66,12 +71,24 @@ function logout() {
 function addTask() {
     let taskInput = document.getElementById("taskInput");
     let taskTime = document.getElementById("taskTime");
-    if (taskInput.value === "") return;
+
+    let taskText = taskInput.value.trim();
+    let timeValue = taskTime.value.trim();
+
+    if (!taskText) {
+        alert("Task cannot be empty!");
+        return;
+    }
+
+    if (!timeValue.match(/^\d{2}:\d{2}$/)) {
+        alert("Please enter a valid time (HH:MM)!");
+        return;
+    }
 
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
-    let newTask = { text: taskInput.value, time: taskTime.value };
+    let newTask = { text: taskText, time: timeValue };
     userData.tasks.push(newTask);
     localStorage.setItem(username, JSON.stringify(userData));
 
@@ -90,7 +107,8 @@ function displayTasks() {
 
     userData.tasks.forEach((task, index) => {
         let li = document.createElement("li");
-        li.innerHTML = `${task.text} (${task.time}) <button onclick="completeTask(${index})">Complete</button>`;
+        li.innerHTML = `${task.text} (${task.time}) 
+            <button onclick="completeTask(${index})">Complete</button>`;
         taskList.appendChild(li);
 
         if (task.time) {
@@ -105,7 +123,7 @@ function completeTask(index) {
     let userData = JSON.parse(localStorage.getItem(username));
 
     userData.tasks.splice(index, 1);
-    userData.points += 2;
+    userData.points += 2; // Reward for task completion
 
     localStorage.setItem(username, JSON.stringify(userData));
     loadUserData(username);
@@ -118,6 +136,8 @@ function loadUserData(username) {
 
     if (userData.points >= 100) {
         document.getElementById("premiumFeature").classList.remove("hidden");
+    } else {
+        document.getElementById("premiumFeature").classList.add("hidden");
     }
 
     displayTasks();
@@ -125,18 +145,28 @@ function loadUserData(username) {
 
 // Schedule notification 5 minutes before task time
 function scheduleNotification(taskName, taskTime) {
+    if (Notification.permission !== "granted") {
+        console.log("Notifications are blocked by the user.");
+        return;
+    }
+
     let now = new Date();
     let [hours, minutes] = taskTime.split(":").map(Number);
+    
     let taskDate = new Date();
     taskDate.setHours(hours);
     taskDate.setMinutes(minutes - 5); // Notify 5 minutes before
     taskDate.setSeconds(0);
 
     let timeDiff = taskDate - now;
+
     if (timeDiff > 0) {
+        console.log(`Notification scheduled for task "${taskName}" at ${taskDate}`);
         setTimeout(() => {
             notifyUser(`Reminder: Your task "${taskName}" starts in 5 minutes!`);
         }, timeDiff);
+    } else {
+        console.log("Task time has already passed or is invalid.");
     }
 }
 
@@ -161,36 +191,3 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-
-// Function to schedule notifications 5 minutes before task time
-function scheduleNotification(taskName, taskTime) {
-    if (Notification.permission !== "granted") {
-        console.log("Notifications are blocked by the user.");
-        return;
-    }
-
-    let now = new Date();
-    let [hours, minutes] = taskTime.split(":").map(Number);
-
-    let taskDate = new Date();
-    taskDate.setHours(hours);
-    taskDate.setMinutes(minutes - 5); // Notify 5 minutes before
-    taskDate.setSeconds(0);
-
-    let timeDiff = taskDate - now;
-    console.log(`Current Time: ${now}`);
-    console.log(`Task Time: ${taskDate}`);
-    console.log(`Time Difference: ${timeDiff} ms`);
-
-    if (timeDiff > 0) {
-        console.log("Notification scheduled.");
-        setTimeout(() => {
-            new Notification(`Reminder: Your task "${taskName}" starts in 5 minutes!`);
-        }, timeDiff);
-    } else {
-        console.log("Task time has already passed or is invalid.");
-    }
-}
-
-// Example usage (Test in Console)
-scheduleNotification("Write Assignment", "18:00");
