@@ -1,3 +1,4 @@
+// Register Service Worker for Push Notifications
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
         .then(() => console.log("Service Worker Registered"))
@@ -18,7 +19,7 @@ document.getElementById("showPassword").addEventListener("change", function () {
     passwordField.type = this.checked ? "text" : "password";
 });
 
-// Login function
+// User Login
 function login() {
     let username = document.getElementById("username").value.trim();
     let password = document.getElementById("password").value.trim();
@@ -33,13 +34,13 @@ function login() {
     }
 }
 
-// Register function
+// User Registration
 function register() {
     let username = document.getElementById("username").value.trim();
     let password = document.getElementById("password").value.trim();
 
     if (!username || !password) {
-        alert("Username and password cannot be empty!");
+        alert("Username and Password are required!");
         return;
     }
 
@@ -48,11 +49,18 @@ function register() {
         return;
     }
 
-    localStorage.setItem(username, JSON.stringify({ password: password, points: 0, tasks: [] }));
+    localStorage.setItem(username, JSON.stringify({
+        password: password,
+        points: 0,
+        completedTasks: 0,
+        premiumUnlocked: false,
+        tasks: []
+    }));
+
     alert("Registration successful! Please login.");
 }
 
-// Show the to-do list app
+// Show App UI
 function showApp(username) {
     document.getElementById("loginContainer").classList.add("hidden");
     document.getElementById("appContainer").classList.remove("hidden");
@@ -61,13 +69,13 @@ function showApp(username) {
     loadUserData(username);
 }
 
-// Logout function
+// User Logout
 function logout() {
     localStorage.removeItem("currentUser");
     location.reload();
 }
 
-// Add Task function
+// Add Task
 function addTask() {
     let taskInput = document.getElementById("taskInput");
     let taskTime = document.getElementById("taskTime");
@@ -80,24 +88,31 @@ function addTask() {
         return;
     }
 
-    if (!timeValue.match(/^\d{2}:\d{2}$/)) {
-        alert("Please enter a valid time (HH:MM)!");
-        return;
-    }
-
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
-    let newTask = { text: taskText, time: timeValue };
+    if (!userData) {
+        alert("User data not found! Please log in again.");
+        return;
+    }
+
+    // Restrict non-premium users from adding time
+    if (!userData.premiumUnlocked && timeValue) {
+        alert("You need to complete 100 tasks to unlock the time feature!");
+        return;
+    }
+
+    let newTask = { text: taskText, time: userData.premiumUnlocked ? timeValue : "" };
     userData.tasks.push(newTask);
     localStorage.setItem(username, JSON.stringify(userData));
 
     taskInput.value = "";
     taskTime.value = "";
+
     displayTasks();
 }
 
-// Display tasks
+// Display Tasks
 function displayTasks() {
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
@@ -107,34 +122,52 @@ function displayTasks() {
 
     userData.tasks.forEach((task, index) => {
         let li = document.createElement("li");
-        li.innerHTML = `${task.text} (${task.time}) 
-            <button onclick="completeTask(${index})">Complete</button>`;
+
+        // Show time only if premium is unlocked
+        let taskDetails = userData.premiumUnlocked ? `${task.text} (${task.time})` : task.text;
+
+        li.innerHTML = `${taskDetails} <button onclick="completeTask(${index})">Complete</button>`;
         taskList.appendChild(li);
 
-        if (task.time) {
+        // Schedule notifications if premium is unlocked
+        if (userData.premiumUnlocked && task.time) {
             scheduleNotification(task.text, task.time);
         }
     });
 }
 
-// Complete task and add points
+// Complete Task
 function completeTask(index) {
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
+    // Remove completed task
     userData.tasks.splice(index, 1);
-    userData.points += 2; // Reward for task completion
+
+    // Increase points
+    userData.points += 2;
+
+    // Track number of completed tasks
+    if (!userData.completedTasks) {
+        userData.completedTasks = 0;
+    }
+    userData.completedTasks += 1;
+
+    // Unlock premium feature if user completes 100 tasks
+    if (userData.completedTasks >= 100) {
+        userData.premiumUnlocked = true;
+    }
 
     localStorage.setItem(username, JSON.stringify(userData));
     loadUserData(username);
 }
 
-// Load user data
+// Load User Data
 function loadUserData(username) {
     let userData = JSON.parse(localStorage.getItem(username));
     document.getElementById("points").innerText = userData.points;
 
-    if (userData.points >= 10) {
+    if (userData.premiumUnlocked) {
         document.getElementById("premiumFeature").classList.remove("hidden");
     } else {
         document.getElementById("premiumFeature").classList.add("hidden");
@@ -143,7 +176,7 @@ function loadUserData(username) {
     displayTasks();
 }
 
-// Schedule notification 5 minutes before task time
+// Schedule Notifications for Task Start & 5 Minutes Before
 function scheduleNotification(taskName, taskTime) {
     if (Notification.permission !== "granted") {
         console.log("Notifications are blocked by the user.");
@@ -152,25 +185,34 @@ function scheduleNotification(taskName, taskTime) {
 
     let now = new Date();
     let [hours, minutes] = taskTime.split(":").map(Number);
-    
-    let taskDate = new Date();
-    taskDate.setHours(hours);
-    taskDate.setMinutes(minutes - 5); // Notify 5 minutes before
-    taskDate.setSeconds(0);
 
-    let timeDiff = taskDate - now;
+    let taskStartTime = new Date();
+    taskStartTime.setHours(hours);
+    taskStartTime.setMinutes(minutes);
+    taskStartTime.setSeconds(0);
 
-    if (timeDiff > 0) {
-        console.log(`Notification scheduled for task "${taskName}" at ${taskDate}`);
+    let taskReminderTime = new Date(taskStartTime);
+    taskReminderTime.setMinutes(taskReminderTime.getMinutes() - 5); // Notify 5 minutes before
+
+    let timeDiffReminder = taskReminderTime - now;
+    let timeDiffStart = taskStartTime - now;
+
+    if (timeDiffReminder > 0) {
+        console.log(`Reminder set for task: ${taskName}`);
         setTimeout(() => {
             notifyUser(`Reminder: Your task "${taskName}" starts in 5 minutes!`);
-        }, timeDiff);
-    } else {
-        console.log("Task time has already passed or is invalid.");
+        }, timeDiffReminder);
+    }
+
+    if (timeDiffStart > 0) {
+        console.log(`Task start notification set for: ${taskName}`);
+        setTimeout(() => {
+            notifyUser(`Your task "${taskName}" is starting now!`);
+        }, timeDiffStart);
     }
 }
 
-// Notification function
+// Send Notification
 function notifyUser(message) {
     if (Notification.permission === "granted") {
         new Notification(message);
@@ -183,7 +225,7 @@ function notifyUser(message) {
     }
 }
 
-// Request notification permission on page load
+// Request Notification Permission on Page Load
 document.addEventListener("DOMContentLoaded", function () {
     if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission().then(permission => {
