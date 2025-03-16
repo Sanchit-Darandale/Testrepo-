@@ -1,4 +1,7 @@
-// Register Service Worker for Push Notifications
+// Unlock premium feature after 10 completed tasks instead of 100
+const PREMIUM_TASK_LIMIT = 10;
+
+// Register service worker for notifications
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
         .then(() => console.log("Service Worker Registered"))
@@ -13,16 +16,16 @@ window.onload = function () {
     }
 };
 
-// Show/hide password toggle
+// Show/hide password
 document.getElementById("showPassword").addEventListener("change", function () {
     let passwordField = document.getElementById("password");
     passwordField.type = this.checked ? "text" : "password";
 });
 
-// User Login
+// Login function
 function login() {
-    let username = document.getElementById("username").value.trim();
-    let password = document.getElementById("password").value.trim();
+    let username = document.getElementById("username").value;
+    let password = document.getElementById("password").value;
 
     let storedUser = localStorage.getItem(username);
 
@@ -34,15 +37,10 @@ function login() {
     }
 }
 
-// User Registration
+// Register function
 function register() {
-    let username = document.getElementById("username").value.trim();
-    let password = document.getElementById("password").value.trim();
-
-    if (!username || !password) {
-        alert("Username and Password are required!");
-        return;
-    }
+    let username = document.getElementById("username").value;
+    let password = document.getElementById("password").value;
 
     if (localStorage.getItem(username)) {
         alert("Username already exists!");
@@ -50,16 +48,16 @@ function register() {
     }
 
     localStorage.setItem(username, JSON.stringify({
-        password: password,
-        completedTasks: 0,
-        premiumUnlocked: false,
+        password: password, 
+        points: 0, 
+        tasksCompleted: 0, 
         tasks: []
     }));
 
     alert("Registration successful! Please login.");
 }
 
-// Show App UI
+// Show the to-do list app
 function showApp(username) {
     document.getElementById("loginContainer").classList.add("hidden");
     document.getElementById("appContainer").classList.remove("hidden");
@@ -68,49 +66,38 @@ function showApp(username) {
     loadUserData(username);
 }
 
-// User Logout
+// Logout function
 function logout() {
     localStorage.removeItem("currentUser");
     location.reload();
 }
 
-// Add Task
+// Add Task function
 function addTask() {
     let taskInput = document.getElementById("taskInput");
     let taskTime = document.getElementById("taskTime");
-
-    let taskText = taskInput.value.trim();
-    let timeValue = taskTime.value.trim();
-
-    if (!taskText) {
-        alert("Task cannot be empty!");
-        return;
-    }
+    
+    if (taskInput.value.trim() === "") return;
 
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
-    if (!userData) {
-        alert("User data not found! Please log in again.");
-        return;
-    }
-
-    // Allow setting time only if the user has unlocked premium
-    let newTask = {
-        text: taskText,
-        time: userData.premiumUnlocked ? timeValue : ""
+    // Allow setting task time only if 10+ tasks are completed
+    let taskDetails = { 
+        text: taskInput.value, 
+        time: userData.tasksCompleted >= PREMIUM_TASK_LIMIT ? taskTime.value : null 
     };
 
-    userData.tasks.push(newTask);
+    userData.tasks.push(taskDetails);
     localStorage.setItem(username, JSON.stringify(userData));
 
     taskInput.value = "";
-    taskTime.value = "";
+    if (userData.tasksCompleted >= PREMIUM_TASK_LIMIT) taskTime.value = "";
 
     displayTasks();
 }
 
-// Display Tasks
+// Display tasks
 function displayTasks() {
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
@@ -120,81 +107,66 @@ function displayTasks() {
 
     userData.tasks.forEach((task, index) => {
         let li = document.createElement("li");
-
-        let taskDetails = userData.premiumUnlocked ? `${task.text} (${task.time})` : task.text;
-
-        li.innerHTML = `${taskDetails} <button onclick="completeTask(${index})">Complete</button>`;
+        li.innerHTML = `${task.text} ${task.time ? `(${task.time})` : ""} 
+                        <button onclick="completeTask(${index})">Complete</button>`;
         taskList.appendChild(li);
 
-        // Schedule task start notification if premium is unlocked
-        if (userData.premiumUnlocked && task.time) {
-            scheduleTaskStartNotification(task.text, task.time);
+        if (task.time) {
+            scheduleNotification(task.text, task.time);
         }
     });
 }
 
-// Complete Task
+// Complete task and add points
 function completeTask(index) {
     let username = localStorage.getItem("currentUser");
     let userData = JSON.parse(localStorage.getItem(username));
 
     userData.tasks.splice(index, 1);
-
-    if (!userData.completedTasks) {
-        userData.completedTasks = 0;
-    }
-    userData.completedTasks += 1;
-
-    // Unlock premium feature after completing 10 tasks
-    if (userData.completedTasks >= 10) {
-        userData.premiumUnlocked = true;
-    }
+    userData.points += 2;
+    userData.tasksCompleted += 1;  // 🔥 Properly increment task count
 
     localStorage.setItem(username, JSON.stringify(userData));
     loadUserData(username);
 }
 
-// Load User Data
+// Load user data
 function loadUserData(username) {
     let userData = JSON.parse(localStorage.getItem(username));
+    document.getElementById("points").innerText = userData.points;
 
-    if (userData.premiumUnlocked) {
+    // Unlock premium feature after 10 tasks
+    if (userData.tasksCompleted >= PREMIUM_TASK_LIMIT) {
         document.getElementById("premiumFeature").classList.remove("hidden");
+        document.getElementById("taskTime").removeAttribute("disabled");
     } else {
         document.getElementById("premiumFeature").classList.add("hidden");
+        document.getElementById("taskTime").setAttribute("disabled", "true");
     }
 
     displayTasks();
 }
 
-// Schedule Notification for Task Start Time
-function scheduleTaskStartNotification(taskName, taskTime) {
-    if (Notification.permission !== "granted") {
-        console.log("Notifications are blocked by the user.");
-        return;
-    }
+// Schedule notification when task starts
+function scheduleNotification(taskName, taskTime) {
+    if (!taskTime) return; // Only schedule if time is set
 
     let now = new Date();
     let [hours, minutes] = taskTime.split(":").map(Number);
+    let taskDate = new Date();
+    taskDate.setHours(hours);
+    taskDate.setMinutes(minutes);
+    taskDate.setSeconds(0);
 
-    let taskStartTime = new Date();
-    taskStartTime.setHours(hours);
-    taskStartTime.setMinutes(minutes);
-    taskStartTime.setSeconds(0);
-
-    let timeDiffStart = taskStartTime - now;
-
-    if (timeDiffStart > 0) {
-        console.log(`Task start notification set for: ${taskName}`);
+    let timeDiff = taskDate - now;
+    if (timeDiff > 0) {
         setTimeout(() => {
             notifyUser(`Your task "${taskName}" is starting now!`);
-        }, timeDiffStart);
-    } else {
-        console.log(`Task "${taskName}" time has already passed.`);
+        }, timeDiff);
     }
 }
 
-// Send Notification
+// Notification function
 function notifyUser(message) {
     if (Notification.permission === "granted") {
         new Notification(message);
@@ -207,7 +179,7 @@ function notifyUser(message) {
     }
 }
 
-// Request Notification Permission on Page Load
+// Request notification permission on page load
 document.addEventListener("DOMContentLoaded", function () {
     if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission().then(permission => {
