@@ -134,7 +134,7 @@ function loadUserData(username) {
     let userData = JSON.parse(localStorage.getItem(username));
     document.getElementById("points").innerText = userData.points;
 
-    if (userData.points >= 100) {
+    if (userData.points >= 10) {
         document.getElementById("premiumFeature").classList.remove("hidden");
     } else {
         document.getElementById("premiumFeature").classList.add("hidden");
