@@ -98,7 +98,7 @@ function addTask() {
 
     // Restrict non-premium users from adding time
     if (!userData.premiumUnlocked && timeValue) {
-        alert("You need to complete 100 tasks to unlock the time feature!");
+        alert("You need to complete 10 tasks to unlock the time feature!");
         return;
     }
 
@@ -153,8 +153,8 @@ function completeTask(index) {
     }
     userData.completedTasks += 1;
 
-    // Unlock premium feature if user completes 100 tasks
-    if (userData.completedTasks >= 100) {
+    // Unlock premium feature if user completes 10 tasks
+    if (userData.completedTasks >= 10) {
         userData.premiumUnlocked = true;
     }
 
