@@ -1,3 +1,9 @@
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("Service Worker Registered"))
+        .catch((error) => console.log("Service Worker Registration Failed", error));
+}
+
 // Check if user is logged in
 window.onload = function () {
     let currentUser = localStorage.getItem("currentUser");
